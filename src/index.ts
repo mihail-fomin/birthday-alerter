@@ -270,6 +270,23 @@ cron.schedule('0 11 * * *', sendBirthdayMessages, {
     timezone: 'Asia/Yekaterinburg',
 });
 
+const sendUnsubscribeReminder = async () => {
+    const users = await getAllUsers();
+
+    for (const user of users) {
+        try {
+            await bot.sendMessage(user.chatId, 'МАША, ОТМЕНИ ЕБУЧУЮ ПОДПИСКУ В ОККО');
+        } catch (error) {
+            console.error(`Не удалось отправить сообщение пользователю ${user.chatId}:`, error);
+        }
+    }
+};
+
+// Настройка cron-задачи на 11 утра 13 декабря
+cron.schedule('0 11 13 12 *', sendUnsubscribeReminder, {
+    timezone: 'Asia/Yekaterinburg',
+});
+
 // cron.schedule('* * * * *', sendBirthdayMessages);
 
 async function getBirthdays(): Promise<Birthday[]> {
