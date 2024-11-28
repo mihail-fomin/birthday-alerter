@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 const ADD_USER_TOOLTIP = 'Напишите /add [имя] [день].[месяц].[год(необязательно)] Например, "/add Мария 25.05.2024" или "/add Мария 25.5"'
+const MY_CHAT_ID = 719127303
+
 
 if (!token) {
   console.error('Error: TELEGRAM_BOT_TOKEN environment variable is not set.');
@@ -258,6 +260,8 @@ const sendBirthdayMessages = async () => {
                 console.error(`Не удалось отправить сообщение пользователю ${user.chatId}:`, error);
             }
         }
+    } else {
+        await bot.sendMessage(MY_CHAT_ID, 'Мишаня, все нормально, я в деле!');
     }
 };
 
