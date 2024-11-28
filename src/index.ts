@@ -245,7 +245,11 @@ const sendBirthdayMessages = async () => {
         } else if (isTomorrow) {
             messages.push(`${birthday.name} завтра отмечает День Рождения!`);
         } else if (difference === 7 || difference === 3) {
-            messages.push(`${birthday.name} будет отмечать День Рождения через ${difference} ${getWordForNumber(difference, ['день', 'дня', 'дней'])}.`);
+            let messageTemplate = `${birthday.name} будет отмечать День Рождения через ${difference} ${getWordForNumber(difference, ['день', 'дня', 'дней'])}.`
+            if (difference === 7) {
+                messageTemplate += ' Время заказать какую-нибудь хуйню на WB'
+            }
+            messages.push(messageTemplate);
         }
     }
 
