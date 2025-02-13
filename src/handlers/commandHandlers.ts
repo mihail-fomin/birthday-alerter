@@ -1,4 +1,6 @@
+import { logger } from '../logger';
 import { bot } from '../services/botService';
+import { handleError } from '../utils/errorHandler';
 import { listBirthdays } from './birhdayHandlers';
 import { COMMANDS, MESSAGES } from './commands/types';
 import { Message } from 'node-telegram-bot-api';
@@ -9,8 +11,13 @@ export const setupCommandHandlers = () => {
 
 // Start command
     bot.onText(new RegExp(`^${COMMANDS.START}$`), async (msg: Message) => {
+        const chatId = msg.chat.id;
+        
+        const { username } = msg.chat
+
         try {
-            const chatId = msg.chat.id;
+
+            logger.info(`User ${username || chatId} started the bot`);
 
             // Сообщение приветствия
             const message = 'Привет! Я — бот, который помогает не забыть дни рождения ваших близких. Выберите одну из команд:';
@@ -41,18 +48,20 @@ export const setupCommandHandlers = () => {
             // Отправляем сообщение с опциями
             await bot.sendMessage(chatId, message, options);
         } catch (error) {
-            console.error('Error in start command:', error);
-            await bot.sendMessage(msg.chat.id, MESSAGES.ERROR.GENERAL);
+            await handleError(error, { command: MESSAGES.ERROR.GENERAL, username, chatId }, bot.sendMessage.bind(bot));
         }
     });
 
     // Help command
     bot.onText(new RegExp(`^${COMMANDS.HELP}$`), async (msg: Message) => {
+        const chatId = msg.chat.id;
+        
+        const { username } = msg.chat
+
         try {
             await bot.sendMessage(msg.chat.id, MESSAGES.HELP);
         } catch (error) {
-            console.error('Error in help command:', error);
-            await bot.sendMessage(msg.chat.id, MESSAGES.ERROR.GENERAL);
+            await handleError(error, { command: MESSAGES.ERROR.GENERAL, username, chatId }, bot.sendMessage.bind(bot));
         }
     });
 
