@@ -4,6 +4,7 @@ import { handleError } from '../utils/errorHandler';
 import { listBirthdays } from './birhdayHandlers';
 import { COMMANDS, MESSAGES } from './commands/types';
 import { Message } from 'node-telegram-bot-api';
+import { userStates } from '../utils/userStates';
 
 const ADD_USER_TOOLTIP = 'Напишите /add [имя] [день].[месяц].[год(необязательно)] Например, "/add Мария 25.05.2024" или "/add Мария 25.5"'
 
@@ -70,7 +71,14 @@ export const setupCommandHandlers = () => {
         const text = msg.text;
     
         if (text === 'Добавить ДР') {
-            bot.sendMessage(chatId, ADD_USER_TOOLTIP);
+            // Просто запускаем процесс добавления дня рождения
+            const { username, id: chatId } = msg.chat;
+            
+            // Устанавливаем состояние ожидания имени
+            userStates.set(chatId, { waitingFor: 'name' });
+            
+            logger.info(`User ${username || chatId} started the add birthday process via button`);
+            bot.sendMessage(chatId, 'Пожалуйста, введите имя человека:');
         } else if (text === 'Показать список ДР') {
             bot.sendMessage(chatId, 'Формирую список дней рождения...');
             listBirthdays(chatId)

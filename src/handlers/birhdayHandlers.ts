@@ -6,10 +6,27 @@ import { birthdayRepository } from "../repositories/birthdayRepository";
 import dayjs from "dayjs";
 import { logger } from "../logger";
 import { handleError } from "../utils/errorHandler";
+import { userStates } from "../utils/userStates";
 
 const DATE_REGEX = `(\\d{1,2})\\.(\\d{1,2})(?:\\.(\\d{4}))?`;
 
 export const setupBirthDayHandlers = () => {
+    // Обработчик команды /add без параметров
+    bot.onText(new RegExp(`^${COMMANDS.ADD}$`), async (msg: Message) => {
+        const { username, id: chatId } = msg.chat;
+
+        try {
+            // Устанавливаем состояние ожидания имени
+            userStates.set(chatId, { waitingFor: 'name' });
+            
+            logger.info(`User ${username || chatId} started the add birthday process`);
+            await bot.sendMessage(chatId, 'Пожалуйста, введите имя человека:');
+        } catch (error) {
+            await handleError(error, { command: COMMANDS.ADD, username, chatId }, bot.sendMessage.bind(bot));
+        }
+    });
+
+    // Сохраняем старый обработчик для обратной совместимости
     bot.onText(new RegExp(`^${COMMANDS.ADD} (.+) ${DATE_REGEX}`), async (msg: Message, match) => {
         const { username, id: chatId } = msg.chat;
 
@@ -51,6 +68,72 @@ export const setupBirthDayHandlers = () => {
             );
         } catch (error) {
             await handleError(error, { command: COMMANDS.ADD, username, chatId }, bot.sendMessage.bind(bot));
+        }
+    });
+
+    // Обработчик для обработки сообщений в процессе добавления дня рождения
+    bot.on('message', async (msg) => {
+        const { id: chatId, username } = msg.chat;
+        const text = msg.text;
+        
+        // Пропускаем команды и обрабатываем только текстовые сообщения
+        if (!text || text.startsWith('/')) {
+            return;
+        }
+        
+        const userState = userStates.get(chatId);
+        if (!userState) {
+            return;
+        }
+        
+        try {
+            if (userState.waitingFor === 'name') {
+                // Сохраняем имя и запрашиваем дату
+                userState.name = text.trim();
+                userState.waitingFor = 'date';
+                
+                logger.info(`User ${username || chatId} provided name: ${userState.name}`);
+                await bot.sendMessage(chatId, `Пожалуйста, введите дату рождения для ${userState.name} в формате ДД.ММ.ГГГГ (год необязателен):`);
+            } else if (userState.waitingFor === 'date') {
+                // Обрабатываем дату
+                const dateMatch = text.match(new RegExp(`^${DATE_REGEX}$`));
+                
+                if (!dateMatch) {
+                    logger.warn(`Invalid date format provided by user ${username || chatId}: ${text}`);
+                    await bot.sendMessage(chatId, MESSAGES.ERROR.INVALID_DATE);
+                    return;
+                }
+                
+                const day = parseInt(dateMatch[1]);
+                const month = parseInt(dateMatch[2]);
+                const year = dateMatch[3] ? parseInt(dateMatch[3]) : dayjs().year();
+                
+                if (!isValidDate(day, month)) {
+                    logger.warn(`Invalid date provided by user ${username || chatId}: ${day}.${month}`);
+                    await bot.sendMessage(chatId, MESSAGES.ERROR.INVALID_DATE);
+                    return;
+                }
+                
+                const birthday = await birthdayRepository.create({
+                    name: userState.name!,
+                    day,
+                    month,
+                    year,
+                });
+                
+                logger.info(`Birthday added by user ${username || chatId}: ${birthday.name} (${day}.${month}.${year})`);
+                await bot.sendMessage(
+                    chatId,
+                    `Успешно добавлен ${birthday.name} с днем рождения ${day.toString().padStart(2, '0')}.${month.toString().padStart(2, '0')}${year ? `.${year}` : ''} 🎂`
+                );
+                
+                // Сбрасываем состояние
+                userStates.delete(chatId);
+            }
+        } catch (error) {
+            await handleError(error, { command: 'add_birthday_process', username, chatId }, bot.sendMessage.bind(bot));
+            // Сбрасываем состояние в случае ошибки
+            userStates.delete(chatId);
         }
     });
 
